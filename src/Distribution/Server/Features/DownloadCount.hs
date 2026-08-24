@@ -144,7 +144,7 @@ downloadFeature :: CoreFeature
 
 downloadFeature CoreFeature{}
                 UserFeature{..}
-                ServerEnv{serverStateDir, serverVerbosity}
+                ServerEnv{serverStateDir, serverVerbosity, serverFlushDownloadsPeriod}
                 inMemState
                 onDiskState
                 totalDownloadsCache
@@ -157,7 +157,7 @@ downloadFeature CoreFeature{}
         featureResources = [ topDownloads downloadResource
                            , downloadCSV
                            ]
-      , featurePostInit  = void $ forkIO flushDownloadsLoop
+      , featurePostInit  = void $ forkIO (flushDownloadsLoop serverFlushDownloadsPeriod)
       , featurePreShutdown = shutdownFlush
       , featureState     = [ abstractAcidStateComponent   inMemState
                            , abstractOnDiskStateComponent onDiskState
@@ -180,11 +180,8 @@ downloadFeature CoreFeature{}
     totalPackageDownloads :: MonadIO m => m TotalDownloads
     totalPackageDownloads = readMemState totalDownloadsCache
 
-    flushInterval :: Int
-    flushInterval = 60 * 1_000_000 -- 60 seconds
-
-    flushDownloadsLoop :: IO ()
-    flushDownloadsLoop = forever $ do
+    flushDownloadsLoop :: Int -> IO ()
+    flushDownloadsLoop flushInterval = forever $ do
         threadDelay flushInterval
         flushDownloadsSafe
 
